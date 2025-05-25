@@ -1,5 +1,3 @@
-(Work in Progress)
-
 # FinaleMe Snakemake Workflow
 
 This Snakemake workflow automates the prediction of DNA methylation from cell-free DNA (cfDNA) whole-genome sequencing (WGS) data using FinaleMe. It supports per-sample processing through methylation prediction and an optional downstream tissue-of-origin (TOO) analysis for all samples.

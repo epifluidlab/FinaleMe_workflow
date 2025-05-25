@@ -55,9 +55,9 @@ Before running the workflow, ensure you have the following data, and their paths
 
 *   **Input BAM files:** Coordinate-sorted and indexed (`.bai`) BAM files for each sample.
 *   **Reference Genome (2bit format):** E.g., `hg19.2bit`. Can be downloaded from UCSC or converted using `faToTwoBit`.
-*   **CpG Motif BedGraph:** E.g., `CG_motif.hg19.common_chr.pos_only.bedgraph`. Available from the FinaleMe DOI.
+*   **CpG Motif BedGraph:** E.g., `CG_motif.hg19.common_chr.pos_only.bedgraph`. Available from [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7779198.svg)](https://doi.org/10.5281/zenodo.7779198).
 *   **Exclude Regions BED:** Regions to mask (dark regions), e.g., `wgEncodeDukeMapabilityRegionsExcludable_wgEncodeDacMapabilityConsensusExcludable.hg19.bed`.
-*   **Methylation Prior BigWig:** E.g., `wgbs_buffyCoat_jensen2015GB.methy.hg19.bw`. Available from the FinaleMe DOI.
+*   **Methylation Prior BigWig:** E.g., `wgbs_buffyCoat_jensen2015GB.methy.hg19.bw`. Available from [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7779198.svg)](https://doi.org/10.5281/zenodo.7779198).
 *   **Chromosome Sizes File:** E.g., `hg19.chrom.sizes`. Can be generated using `samtools faidx` and `awk`.
 *   **FinaleMe Scripts:**
     *   `bedpredict2bw.b37.pl` (for Step 4).

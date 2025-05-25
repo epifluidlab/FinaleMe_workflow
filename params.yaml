@@ -1,0 +1,31 @@
+input_dir: "input"
+output_dir: "output"
+supplement_dir: "supplement"
+scripts_dir: "scripts" # location of, Perl, R scripts
+
+finaleme_jar_path: "FinaleMe-0.58-jar-with-dependencies.jar"
+bw_perl_script: "bedpredict2bw.b37.pl" # In supplement_dir
+lib_dir: "lib" # Contains the auxillary .jar files
+
+# Reference and annotation files (must exist in sup_dir)
+reference_2bit: "hg19.2bit"
+cpg_motif_bedgraph: "CG_motif.hg19.common_chr.pos_only.bedgraph"
+exclude_regions_bed: "wgEncodeDukeMapabilityRegionsExcludable_wgEncodeDacMapabilityConsensusExcludable.hg19.bed"
+methylation_prior_bw: "wgbs_buffyCoat_jensen2015GB.methy.hg19.bw"
+chrom_sizes: "hg19.chrom.sizes"
+
+# Java memory settings (optional, defaults are in the Snakefile)
+# java_xmx_step1: "20G"
+# java_xmx_step2_train: "100G"
+# java_xmx_step3_decode: "100G"
+# java_xmx_step5_alignmultiwig: "10G"
+
+# FinaleMe parameters (optional, defaults are in the Snakefile)
+# min_datapoints_train: 7
+# gmm_train: True
+# cov_outlier_train: 3
+
+# Tissue of Origin (TOO) Analysis Settings
+too_enabled: False # Set to False to disable TOO steps
+autosome_1kb_intervals_bed: "autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed" # In supplement_dir
+reference_methylomes_dir: "reference_methylomes_for_TOO" # In supplement_dir

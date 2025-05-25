@@ -1,0 +1,45 @@
+host: br014.ib.bridges2.psc.edu
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 256
+Rules claiming more threads will be scaled down.
+Job stats:
+job                           count
+--------------------------  -------
+all                               1
+finaleme_convert_to_bigwig        1
+finaleme_decode                   1
+finaleme_extract_features         1
+finaleme_train_model              1
+total                             5
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sun May 25 14:06:14 2025]
+localrule finaleme_extract_features:
+    input: input/Pilot_196.hg38.mdups.bam, input/Pilot_196.hg38.mdups.bam.bai, supplement/hg19.2bit, supplement/CG_motif.hg19.common_chr.pos_only.bedgraph, supplement/wgEncodeDukeMapabilityRegionsExcludable_wgEncodeDacMapabilityConsensusExcludable.hg19.bed, supplement/wgbs_buffyCoat_jensen2015GB.methy.hg19.bw
+    output: output/Pilot_196.hg38.mdups/Pilot_196.hg38.mdups.CpgMultiMetricsStats.details.bed.gz
+    log: output/Pilot_196.hg38.mdups/logs/extract_features.log
+    jobid: 4
+    reason: Missing output files: output/Pilot_196.hg38.mdups/Pilot_196.hg38.mdups.CpgMultiMetricsStats.details.bed.gz
+    wildcards: sample=Pilot_196.hg38.mdups
+    resources: tmpdir=/tmp
+
+Terminating processes on user request, this might take some time.
+[Sun May 25 14:06:24 2025]
+Error in rule finaleme_extract_features:
+    jobid: 4
+    input: input/Pilot_196.hg38.mdups.bam, input/Pilot_196.hg38.mdups.bam.bai, supplement/hg19.2bit, supplement/CG_motif.hg19.common_chr.pos_only.bedgraph, supplement/wgEncodeDukeMapabilityRegionsExcludable_wgEncodeDacMapabilityConsensusExcludable.hg19.bed, supplement/wgbs_buffyCoat_jensen2015GB.methy.hg19.bw
+    output: output/Pilot_196.hg38.mdups/Pilot_196.hg38.mdups.CpgMultiMetricsStats.details.bed.gz
+    log: output/Pilot_196.hg38.mdups/logs/extract_features.log (check log file(s) for error details)
+    shell:
+        
+        echo "Note: extracting features can take a significant amount of time (minutes to hours)"
+        java -Xmx20G -cp "FinaleMe-0.58-jar-with-dependencies.jar:lib/gatk-package-distribution-3.3.jar:lib/sis-jhdf5-batteries_included.jar:lib/java-genomics-io.jar:lib/igv.jar" org.cchmc.epifluidlab.finaleme.utils.CpgMultiMetricsStats         supplement/hg19.2bit         supplement/CG_motif.hg19.common_chr.pos_only.bedgraph         supplement/CG_motif.hg19.common_chr.pos_only.bedgraph         input/Pilot_196.hg38.mdups.bam         output/Pilot_196.hg38.mdups/Pilot_196.hg38.mdups.CpgMultiMetricsStats.details.bed.gz         -stringentPaired         -excludeRegions supplement/wgEncodeDukeMapabilityRegionsExcludable_wgEncodeDacMapabilityConsensusExcludable.hg19.bed         -valueWigs methyPrior:0:supplement/wgbs_buffyCoat_jensen2015GB.methy.hg19.bw         -wgsMode > output/Pilot_196.hg38.mdups/logs/extract_features.log 2>&1
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Complete log: .snakemake/log/2025-05-25T140614.668383.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.

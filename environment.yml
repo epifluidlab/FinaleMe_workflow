@@ -1,0 +1,14 @@
+name: finaleme_workflow
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - openjdk=8 # Or a compatible version
+  - snakemake-minimal >=7.0 # Or your preferred version
+  - perl
+  - ucsc-bedgraphtobigwig
+  - bedtools
+  # - r-base
+  # - r-quadprog
+  - samtools # Useful for preparing reference files

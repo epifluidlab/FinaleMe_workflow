@@ -110,7 +110,7 @@ The workflow is controlled by a `params.yaml` file. Check `params.yaml` in this 
     *   `{sample_name}.finaleme.model`: Trained HMM model (Step 2).
     *   `{sample_name}.finaleme.prediction.bed.gz`: Raw methylation predictions (Step 3).
     *   `{sample_name}.finaleme.cov.b37.bw`: Coverage BigWig (Step 4).
-    *   `{sample_name}.finaleme.methy_count.b37.bw`: Methylation count BigWig (Step 4, **assumption**).
+    *   `{sample_name}.finaleme.methy_count.b37.bw`: Methylation count BigWig (Step 4).
 *   **Tissue of Origin Output (if `too_enabled: True`):**
     Files related to the TOO analysis are placed in `output_dir/tissue_of_origin/`.
     *   `cfdna.methy_summary.cmd.txt`: Intermediate command file for AlignMultiWig.

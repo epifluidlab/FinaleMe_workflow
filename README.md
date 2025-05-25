@@ -36,7 +36,7 @@ This Snakemake workflow automates the prediction of DNA methylation from cell-fr
 3.  **Download FinaleMe JARs:**
     Download the main FinaleMe JAR (`FinaleMe-VERSION-jar-with-dependencies.jar`) and the auxiliary JARs from the `lib/` directory.
     *   Main JAR: [FinaleMe v0.58.1 Release](https://github.com/epifluidlab/FinaleMe/releases/tag/v.0.58.1)
-    *   Auxillary JARs: Place in a designated `lib` directory and update the paths in your configuration file.
+    *   Auxillary JARs: Place [these JARS](https://github.com/epifluidlab/FinaleMe/tree/main/lib) in a designated `lib` directory and update the paths in your configuration file.
 
 ## Dependencies
 
@@ -65,7 +65,7 @@ Before running the workflow, ensure you have the following data, and their paths
     *   `bedpredict2bw.b37.pl` (for Step 4).
     <!-- *   `TissueOfOriginExampleScript.R` (for Step 5, if enabled). -->
 *   **(Optional - For Tissue of Origin Analysis):**
-    *   `autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed`: Bed file with 1kb intervals.
+    *   `autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed`: Bed file with 1kb intervals: Download the UCSC.cpgIsland annotation file from UCSC genome browser, keep the autosomes, and generate 1kb non-overlapped windows
     *   Reference methylomes for TOO analysis (directory of files).
 
 ## Configuration (`params.yaml`)

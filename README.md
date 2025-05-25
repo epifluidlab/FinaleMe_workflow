@@ -94,7 +94,7 @@ The workflow is controlled by a `params.yaml` file. Check `params.yaml` in this 
 3.  **SLURM Execution (Optional):**
     This workflow is SLURM compatible if you're using this workflow in an HPC environment as a job.
     ```bash
-    # Example: using a profile named 'slurm_profile'
+    # Using the sample SLURM profile provided in this repository
     snakemake --configfile params.yaml --profile slurm_profile > snakemake.log 2>&1 &
     ```
 ## Workflow Structure and Output

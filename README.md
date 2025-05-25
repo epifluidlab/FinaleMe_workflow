@@ -92,13 +92,11 @@ The workflow is controlled by a `params.yaml` file. Check `params.yaml` in this 
     ```
 
 3.  **SLURM Execution (Optional):**
-    If you have a Snakemake SLURM profile configured:
+    This workflow is SLURM compatible if you're using this workflow in an HPC environment as a job.
     ```bash
     # Example: using a profile named 'slurm_profile'
     snakemake --configfile params.yaml --profile slurm_profile > snakemake.log 2>&1 &
     ```
-    You may need to create or adapt a SLURM profile (e.g., a `slurm_profile/params.yaml` and `slurm-submit.py` script) for your cluster environment.
-
 ## Workflow Structure and Output
 
 *   **Input BAMs:** Located in the directory specified by `input_dir`.

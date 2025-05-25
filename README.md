@@ -66,7 +66,7 @@ Before running the workflow, ensure you have the following data, and their paths
     <!-- *   `TissueOfOriginExampleScript.R` (for Step 5, if enabled). -->
 *   **(Optional - For Tissue of Origin Analysis):**
     *   `autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed`: Bed file with 1kb intervals: Download the UCSC.cpgIsland annotation file from UCSC genome browser, keep the autosomes, and generate 1kb non-overlapped windows
-    *   Reference methylomes for TOO analysis (directory of files).
+    *   Reference methylomes for TOO analysis [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14013719.svg)](https://doi.org/10.5281/zenodo.14013719).
 
 ## Configuration (`params.yaml`)
 

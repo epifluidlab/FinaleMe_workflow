@@ -60,10 +60,10 @@ Before running the workflow, ensure you have the following data, and their paths
 *   **Chromosome Sizes File:** E.g., `hg19.chrom.sizes`. Can be generated using `samtools faidx` and `awk`.
 *   **FinaleMe Scripts:**
     *   `bedpredict2bw.b37.pl` (for tissue of origin analysis only) - see the `scripts` directory
-    <!-- *   `TissueOfOriginExampleScript.R` (for Step 5, if enabled). -->
+    *   `TissueOfOriginExampleScript.R` (for tissue of origin analysis only) - see the `scripts` directory
 *   **(Optional - For Tissue of Origin Analysis):**
     *   `autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed`: Bed file with 1kb intervals: Download the UCSC.cpgIsland annotation file from UCSC genome browser, keep the autosomes, and generate 1kb non-overlapped windows
-    *   Reference methylomes for TOO analysis [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14013719.svg)](https://doi.org/10.5281/zenodo.14013719).
+    *   Reference methylomes for TOO analysis [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14013719.svg)](https://doi.org/10.5281/zenodo.14013719). See `reference_panel.bash` to create reference panel methylomes
 
 ## Configuration (`params.yaml`)
 
@@ -110,10 +110,7 @@ The workflow is controlled by a `params.yaml` file. Check `params.yaml` in this 
     *   `{sample_name}.finaleme.methy_count.b37.bw`: Methylation count BigWig (Step 4).
 *   **Tissue of Origin Output (if `too_enabled: True`):**
     Files related to the TOO analysis are placed in `output_dir/tissue_of_origin/`.
-    *   `cfdna.methy_summary.cmd.txt`: Intermediate command file for AlignMultiWig.
-    *   `cfdna.names_order.txt`: Intermediate sample order file.
-    *   `output.add_value.methy.bed.gz`: Merged methylation data across samples.
-    *   `tissue_of_origin_results.tsv` (or similar): Final results from the R script.
+    *   `tissue_of_origin_results.tsv`: Final results from the R script.
 
 ## Notes
 

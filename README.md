@@ -116,3 +116,12 @@ The workflow is controlled by a `params.yaml` file. Check `params.yaml` in this 
 
 *   Ensure sufficient memory (`-Xmx` Java options in `params.yaml`) is allocated for each Java step, especially for HMM training and decoding, based on your dataset size and system resources.
 *   Log files for each step are generated in `output/{sample_name}/logs/` or `output_dir/tissue_of_origin/logs/`.
+
+## Citation
+Liu Y# et al. (2024) FinaleMe: Predicting DNA methylation by the fragmentation patterns of plasma cell-free DNA. Nature Communications doi: [https://doi.org/10.1038/s41467-024-47196-6](https://doi.org/10.1038/s41467-024-47196-6)
+
+## Contact
+- Kundan Baliga: kundanbal2969@k12.ipsd.org
+
+## License
+This project falls under an MIT license. See the included `LICENSE` file for details.

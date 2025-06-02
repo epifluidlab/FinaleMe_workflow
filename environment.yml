@@ -9,6 +9,6 @@ dependencies:
   - perl
   - ucsc-bedgraphtobigwig
   - bedtools
-  # - r-base
-  # - r-quadprog
+  - r-base
+  - r-quadprog
   - samtools # Useful for preparing reference files

@@ -2,10 +2,10 @@
 use strict;
 use warnings;
 
-# Alert user and halt if error occurs while the perl script is executed
+# alert user and halt if error occurs while the perl script is executed
 sub run_command {
     my ($cmd) = @_;
-	# Capture STDOUT and STDERR
+	# Capture stdout and stderr
     my $captured_output = `$cmd 2>&1`;
     my $exit_code = $? >> 8;
     my $signal_num = $? & 127;

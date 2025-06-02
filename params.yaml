@@ -1,6 +1,7 @@
 input_dir: "input"
 output_dir: "output"
 supplement_dir: "supplement"
+reference_dir: "reference" # for TOO only
 scripts_dir: "scripts" # location of, Perl, R scripts
 chr_prefix_bam: true # Are chromosomes identified by their number only (0-9) or prefixed with chr, i.e chr[0-9]?
 
@@ -26,7 +27,41 @@ chrom_sizes: "hg19.chrom.sizes"
 # gmm_train: True
 # cov_outlier_train: 3
 
-# Tissue of Origin (TOO) Analysis Settings
-too_enabled: True # Set to False to disable TOO steps
+# TOO
+too_enabled: True
 autosome_1kb_intervals_bed: "autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed" # In supplement_dir
-reference_methylomes_dir: "reference_methylomes_for_TOO" # In supplement_dir
+ref_panel_meth_data: "reference_panel.merged_methy.bed.gz"
+ref_panel_names_order: "reference_panel.names_order.txt" 
+# AI's R stuff
+too_r_script_filename: "TissueOfOriginPipelineScript.R"
+too_r_params:
+  # Starting column index (1-based) for methylation/coverage data in the merged BED.gz files
+  start_col_data: 7
+
+  # Minimum coverage value for a site to be considered valid.
+  # Methylation is set to NA if actual coverage is below this.
+  # Based on debugging, a lower value might be needed for cfDNA.
+  min_cov_val: 1
+
+  # Methylation level threshold for binarizing methylation values (0 or 1).
+  meth_bin_threshold: 0.1
+
+  # Quantile for selecting the most variable regions from the reference panel.
+  # e.g., 0.99 means top 1% most variable. 0.1 means top 90%.
+  sd_quantile: 0.1
+
+  # Optional: Comma-separated string of column indices (1-based) to REMOVE
+  # from the reference panel matrix *before* variability filtering.
+  # Leave as "" or null if no initial removal is needed.
+  # Example: "2,4,13"
+  ref_initial_cols_remove: ""
+
+  # Optional: Comma-separated string of column indices (1-based) to KEEP and REORDER
+  # from the reference panel matrix *after* variability filtering.
+  # These indices refer to the columns of the matrix at that stage.
+  # Leave as "" or null if you want to keep all remaining columns in their current order.
+  # Example: "6,1,7,5"
+  ref_reorder_cols_keep: ""
+
+  # Threshold below which final deconvolution proportions are set to zero.
+  final_result_threshold: 0.001

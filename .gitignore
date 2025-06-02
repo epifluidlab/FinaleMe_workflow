@@ -2,4 +2,6 @@ output
 supplement
 FinaleMe-0.58-jar-with-dependencies.jar
 .snakemake
-reference
+ref
+.RData
+.RHistory

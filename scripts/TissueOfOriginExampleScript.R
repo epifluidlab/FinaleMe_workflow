@@ -1,278 +1,307 @@
 #!/usr/bin/env Rscript
 
-# Load necessary library
-library(quadprog)
-library(optparse)
+# adapted verison of dr. liu's R script by Gemini  
+# --- 0. Load Libraries and Parse Arguments ---
+suppressPackageStartupMessages(library(optparse))
+suppressPackageStartupMessages(library(quadprog))
 
-# Function for Tissue of Origin deconvolution (from the original script)
-tissue_of_origin <- function(dat) {
-  # Ensure no NAs or Infs which cause errors in solve.QP
-  # Check if all rows are valid first
-  valid_rows <- rowSums(is.na(dat)) == 0 & rowSums(is.infinite(as.matrix(dat))) == 0
-  if (sum(valid_rows) == 0) {
-    warning("No valid rows found after filtering NAs and Infs. Returning NAs.")
-    # Return a vector of NAs with the correct number of tissues
-    num_tissues <- ncol(dat) - 1 # -1 for the cfDNA column
-    res_solution <- rep(NA_real_, num_tissues)
-    return(res_solution)
-  }
-  dat <- dat[valid_rows, , drop = FALSE] # drop=FALSE to keep it a matrix even if one row
-
-  X <- as.matrix(dat[, 2:ncol(dat), drop = FALSE]) # Reference tissue matrix
-  Y <- dat[, 1] # cfDNA sample vector (single column)
-
-  # Check for rank deficiency in X before cholesky decomposition
-  # A simple check: if number of rows (features) < number of columns (tissues)
-  if (nrow(X) < ncol(X)) {
-    warning(paste0("Number of features (", nrow(X), ") is less than number of reference tissues (", ncol(X), "). This can lead to an underdetermined system. Results might be unreliable. Returning NAs."))
-    res_solution <- rep(NA_real_, ncol(X))
-    return(res_solution)
-  }
-
-  # Add a small constant to the diagonal of t(X) %*% X to ensure positive definiteness (ridge regression like)
-  # This helps if the matrix is near singular.
-  epsilon <- 1e-6
-  dmat <- t(X) %*% X + diag(epsilon, ncol(X))
-
-  # Attempt to solve, with error handling
-  result <- tryCatch({
-    Rinv <- solve(chol(dmat)) # Use the regularized dmat
-    C <- cbind(rep(1, ncol(X)), diag(ncol(X))) # Constraints: sum to 1, non-negative
-    b <- c(1, rep(0, ncol(X)))
-    d_vec <- t(Y) %*% X # Note: dvec should be t(Y) %*% X, not t(X) %*% Y for solve.QP with Dmat=Rinv
-    
-    solve.QP(Dmat = Rinv, factorized = TRUE, dvec = d_vec, Amat = C, bvec = b, meq = 1)
-  }, error = function(e) {
-    warning(paste("Error in solve.QP:", e$message, ". Returning NAs for this sample."))
-    return(NULL) # Return NULL to indicate failure
-  })
-
-  if (is.null(result)) {
-    res_solution <- rep(NA_real_, ncol(X)) # ncol(X) is the number of tissues
-  } else {
-    res_solution <- result$solution
-  }
-  return(res_solution)
-}
-
-
-# --- Argument Parsing ---
 option_list <- list(
-  make_option(c("-c", "--cfdna_meth_file"), type = "character", default = NULL,
-              help = "Path to the merged cfDNA methylation data file (e.g., output.add_value.methy.bed.gz)", metavar = "character"),
-  make_option(c("-n", "--cfdna_names_file"), type = "character", default = NULL,
-              help = "Path to the cfDNA sample names order file (e.g., cfdna.names_order.txt)", metavar = "character"),
-  make_option(c("-r", "--ref_meth_file"), type = "character", default = NULL,
-              help = "Path to the reference tissue methylation data file", metavar = "character"),
-  make_option(c("-s", "--ref_names_file"), type = "character", default = NULL,
-              help = "Path to the reference tissue names order file", metavar = "character"),
-  make_option(c("-o", "--output_file"), type = "character", default = "tissue_of_origin_results.tsv",
-              help = "Path for the output results TSV file [default= %default]", metavar = "character"),
-  make_option(c("--ref_start_col"), type = "integer", default = 7,
-              help = "Starting column index for methylation/coverage data in the reference methylation file [default= %default]", metavar = "integer"),
-  make_option(c("--cfdna_start_col"), type = "integer", default = 7,
-              help = "Starting column index for methylation/coverage data in the cfDNA methylation file [default= %default]", metavar = "integer"),
-  make_option(c("--min_cov_per_kb"), type = "numeric", default = 10,
-              help = "Minimum coverage per 1kb region (scaled) for a site to be considered [default= %default]", metavar = "numeric"),
-  make_option(c("--sd_quantile_threshold"), type = "numeric", default = 0.99,
-              help = "Quantile threshold for standard deviation to select most variable reference sites (0.0 to 1.0) [default= %default]. For example, 0.99 means top 1% most variable.", metavar = "numeric"),
-  make_option(c("--binarize_threshold"), type = "numeric", default = 0.1,
-              help = "Methylation threshold for binarizing data (value >= threshold becomes 1, else 0). Set to -1 to disable binarization. [default= %default]", metavar = "numeric")
+  make_option(c("-r", "--ref_meth_data"), type="character", default=NULL,
+              help="Path to reference panel merged methylation data (e.g., *.add_value.methy.bed.gz)", metavar="FILE"),
+  make_option(c("-n", "--ref_names_order"), type="character", default=NULL,
+              help="Path to reference panel names/order file", metavar="FILE"),
+  make_option(c("-c", "--cfdna_meth_data"), type="character", default=NULL,
+              help="Path to cfDNA merged methylation data (e.g., *.add_value.methy.bed.gz)", metavar="FILE"),
+  make_option(c("-s", "--cfdna_names_order"), type="character", default=NULL,
+              help="Path to cfDNA names/order file", metavar="FILE"),
+  make_option(c("-o", "--output_file"), type="character", default="too_results.tsv",
+              help="Path for the output TSV file [default %default]", metavar="FILE"),
+  make_option(c("--start_col_data"), type="integer", default=7,
+              help="Starting column index for methylation/coverage data in BED.gz files [default %default]", metavar="INT"),
+  make_option(c("--min_cov_val"), type="numeric", default=10,
+              help="Minimum coverage value for a site to be considered. Methylation set to NA if below. [default %default]", metavar="NUM"),
+  make_option(c("--meth_bin_threshold"), type="numeric", default=0.1,
+              help="Methylation level for binarizing values [default %default]", metavar="NUM"),
+  make_option(c("--sd_quantile"), type="numeric", default=0.99,
+              help="Quantile for selecting most variable regions from reference panel (e.g., 0.99 for top 1%%) [default %default]", metavar="NUM"),
+  make_option(c("--ref_initial_cols_remove"), type="character", default=NULL,
+              help="Comma-separated list of column indices to REMOVE from reference panel initially (e.g., '2,4,5,13'). Optional.", metavar="STRING"),
+  make_option(c("--ref_reorder_cols_keep"), type="character", default=NULL,
+              help="Comma-separated list of column indices to KEEP and REORDER from reference panel after variability filtering (e.g., '6,1,7,5,4,2,8,3,9,10'). Optional, if NULL keeps all remaining.", metavar="STRING"),
+  make_option(c("--final_result_threshold"), type="numeric", default=0.001,
+              help="Threshold to zero out small values in the final deconvolution result [default %default]", metavar="NUM")
 )
 
-opt_parser <- OptionParser(option_list = option_list)
+opt_parser <- OptionParser(option_list=option_list, description="Tissue of Origin Deconvolution Script")
 opt <- parse_args(opt_parser)
 
 # Validate required arguments
-if (is.null(opt$cfdna_meth_file) || is.null(opt$cfdna_names_file) || is.null(opt$ref_meth_file) || is.null(opt$ref_names_file)) {
+required_args <- c("ref_meth_data", "ref_names_order", "cfdna_meth_data", "cfdna_names_order")
+missing_args <- required_args[!sapply(required_args, function(arg) !is.null(opt[[arg]]))]
+if (length(missing_args) > 0) {
   print_help(opt_parser)
-  stop("All input file arguments (--cfdna_meth_file, --cfdna_names_file, --ref_meth_file, --ref_names_file) must be supplied.", call. = FALSE)
+  stop("Missing required arguments: ", paste(missing_args, collapse=", "), call.=FALSE)
 }
 
-cat("Starting Tissue of Origin Analysis...\n")
-cat("Parameters:\n")
-cat("  cfDNA Methylation File:", opt$cfdna_meth_file, "\n")
-cat("  cfDNA Names File:", opt$cfdna_names_file, "\n")
-cat("  Reference Methylation File:", opt$ref_meth_file, "\n")
-cat("  Reference Names File:", opt$ref_names_file, "\n")
-cat("  Output File:", opt$output_file, "\n")
-cat("  Reference Data Start Column:", opt$ref_start_col, "\n")
-cat("  cfDNA Data Start Column:", opt$cfdna_start_col, "\n")
-cat("  Min Coverage per 1kb (scaled):", opt$min_cov_per_kb, "\n")
-cat("  SD Quantile Threshold for Reference:", opt$sd_quantile_threshold, "\n")
-cat("  Binarization Threshold:", opt$binarize_threshold, "\n\n")
-
-
-# --- Load Reference Panel Data ---
-cat("Loading reference panel data...\n")
-ref_raw_data <- read.table(opt$ref_meth_file, sep = "\t", header = FALSE, stringsAsFactors = FALSE, comment.char="")
-ref_name_order <- read.table(opt$ref_names_file, sep = "\t", header = FALSE, stringsAsFactors = FALSE, comment.char="")
-
-ref_methy_mat <- NULL
-# Assumes BED-like format with chr, start, end, name_or_id in first 4 columns
-# and then pairs of (methylation_sum, coverage_sum) for each sample
-# The name/ID for the region is expected in column 4 for rownames
-region_ids_ref <- ref_raw_data[, 4] # Assuming region ID is in column 4
-
-cat("Processing reference methylation matrix...\n")
-for (i in seq(opt$ref_start_col, ncol(ref_raw_data), 2)) {
-  j <- i + 1
-  if (j > ncol(ref_raw_data)) {
-    warning(paste("Odd number of data columns in reference file after start column", opt$ref_start_col, ". Skipping last column if it exists."))
-    break
+# Helper function to parse comma-separated integers
+parse_cs_integers <- function(cs_string) {
+  if (is.null(cs_string) || nchar(trimws(cs_string)) == 0) {
+    return(NULL)
   }
-  methy_sum <- as.numeric(ref_raw_data[, i])
-  cov <- as.numeric(ref_raw_data[, j])
-  
-  # Calculate methylation fraction, handle low coverage by setting methylation to NA
-  # The original script scaled coverage by 1000, opt$min_cov_per_kb is the actual coverage value
-  s <- ifelse(cov < opt$min_cov_per_kb, NA_real_, methy_sum / cov)
-  s[is.nan(s)] <- NA_real_ # Ensure 0/0 results in NA
-  
-  ref_methy_mat <- cbind(ref_methy_mat, s)
-}
-if (!is.null(ref_methy_mat)) {
-    rownames(ref_methy_mat) <- region_ids_ref # Use region IDs from column 4
-    colnames(ref_methy_mat) <- ref_name_order[, 2] # Tissue names
-} else {
-    stop("Failed to process reference methylation matrix. Check input file format and start column.")
+  as.integer(strsplit(cs_string, ",")[[1]])
 }
 
+# --- 1. Define Tissue of Origin Deconvolution Function ---
+tissue_of_origin <- function(dat) {
+  dat_matrix <- as.matrix(dat)
+  valid_rows <- rowSums(is.na(dat_matrix)) == 0 & rowSums(is.infinite(dat_matrix)) == 0
+  dat_filtered <- dat_matrix[valid_rows, , drop = FALSE]
 
-# Filter reference matrix: select most variable sites
-cat("Filtering reference matrix for most variable sites...\n")
-row_sd_ref <- apply(ref_methy_mat, 1, sd, na.rm = TRUE)
-# Remove rows that are all NA before quantile calculation, or sd will be NA
-valid_sd_rows <- !is.na(row_sd_ref)
-if (sum(valid_sd_rows) == 0) {
-    stop("No valid standard deviations calculated for reference matrix. All rows might be NA or have no variance.")
-}
-
-# Calculate quantile on valid SDs
-quantile_val <- quantile(row_sd_ref[valid_sd_rows], probs = opt$sd_quantile_threshold, na.rm = TRUE)
-cat(paste("  SD threshold for selection (quantile", opt$sd_quantile_threshold, "):", round(quantile_val, 4), "\n"))
-
-# Select rows where SD is greater than or equal to the quantile value AND SD is not NA
-methy_mat_ref_var <- ref_methy_mat[which(row_sd_ref >= quantile_val & valid_sd_rows), , drop = FALSE]
-
-# Further filter out rows that became all NA after selection or still have any NAs/Infs
-# (This is important if some tissues had NAs for the selected variable sites)
-methy_mat_ref_var <- methy_mat_ref_var[rowSums(is.na(methy_mat_ref_var)) == 0 & 
-                                       rowSums(is.infinite(as.matrix(methy_mat_ref_var))) == 0, , drop = FALSE]
-
-if (nrow(methy_mat_ref_var) == 0) {
-  stop("No regions left in reference matrix after variability and NA/Inf filtering. Try adjusting --sd_quantile_threshold or check data quality.")
-}
-cat(paste("  Selected", nrow(methy_mat_ref_var), "most variable regions for reference panel.\n"))
-
-# Binarize reference data if threshold is not -1
-if (opt$binarize_threshold != -1) {
-  cat(paste("  Binarizing reference data at threshold:", opt$binarize_threshold, "\n"))
-  methy_mat_ref_var[methy_mat_ref_var < opt$binarize_threshold] <- 0
-  methy_mat_ref_var[methy_mat_ref_var >= opt$binarize_threshold] <- 1
-}
-
-
-# --- Load cfDNA Data ---
-cat("Loading cfDNA data...\n")
-cfdna_raw_data <- read.table(opt$cfdna_meth_file, sep = "\t", header = FALSE, stringsAsFactors = FALSE, comment.char="")
-cfdna_name_order <- read.table(opt$cfdna_names_file, sep = "\t", header = FALSE, stringsAsFactors = FALSE, comment.char="")
-
-cfdna_methy_mat <- NULL
-region_ids_cfdna <- cfdna_raw_data[, 4] # Assuming region ID is in column 4
-
-cat("Processing cfDNA methylation matrix...\n")
-for (i in seq(opt$cfdna_start_col, ncol(cfdna_raw_data), 2)) {
-  j <- i + 1
-   if (j > ncol(cfdna_raw_data)) {
-    warning(paste("Odd number of data columns in cfDNA file after start column", opt$cfdna_start_col, ". Skipping last column if it exists."))
-    break
+  if (nrow(dat_filtered) < 2 || ncol(dat_filtered) < 2) {
+      warning("Not enough valid data points after filtering NA/Inf for deconvolution. Returning NAs.")
+      return(rep(NA, ncol(dat) -1 ))
   }
-  methy_sum <- as.numeric(cfdna_raw_data[, i])
-  cov <- as.numeric(cfdna_raw_data[, j])
-  
-  s <- ifelse(cov < opt$min_cov_per_kb, NA_real_, methy_sum / cov)
-  s[is.nan(s)] <- NA_real_
-  
-  cfdna_methy_mat <- cbind(cfdna_methy_mat, s)
+
+  X <- as.matrix(dat_filtered[, 2:ncol(dat_filtered), drop = FALSE])
+  Y <- dat_filtered[, 1, drop = FALSE]
+
+  XtX <- t(X) %*% X
+  diag_epsilon <- 1e-8
+  if(nrow(XtX) == ncol(XtX)){
+     diag(XtX) <- diag(XtX) + diag_epsilon
+  } else {
+     warning("t(X)%*%X is not square. This should not happen if X has columns. Skipping regularization.")
+  }
+
+  Rinv <- tryCatch({
+      solve(chol(XtX))
+  }, error = function(e) {
+      warning("chol(t(X)%*%X) failed, possibly due to singular matrix. Deconvolution may fail. Error: ", e$message)
+      return(NULL)
+  })
+
+  if(is.null(Rinv)){
+      return(rep(NA, ncol(X)))
+  }
+
+  C <- cbind(rep(1, ncol(X)), diag(ncol(X)))
+  b <- c(1, rep(0, ncol(X)))
+  d <- t(Y) %*% X
+
+  result <- tryCatch({
+    solve.QP(Dmat = Rinv, factorized = TRUE, dvec = as.vector(d), Amat = C, bvec = b, meq = 1)
+  }, error = function(e) {
+    warning("solve.QP failed. Error: ", e$message)
+    return(NULL)
+  })
+
+  if(is.null(result)){
+      return(rep(NA, ncol(X)))
+  }
+  result$solution
 }
-if (!is.null(cfdna_methy_mat)) {
-    rownames(cfdna_methy_mat) <- region_ids_cfdna # Use region IDs from column 4
-    colnames(cfdna_methy_mat) <- cfdna_name_order[, 2] # cfDNA sample names
+
+# --- 2. Load and Process Reference Panel Data ---
+message("Loading reference panel data...")
+message("  Reference methylation data file: ", opt$ref_meth_data)
+raw.1kb <- read.table(opt$ref_meth_data, sep="\t", header=F, stringsAsFactors=FALSE, comment.char="")
+message("  Reference names order file: ", opt$ref_names_order)
+name.order <- read.table(opt$ref_names_order, sep="\t", header=F, stringsAsFactors=FALSE, comment.char="")
+message(paste0("  Raw reference data loaded: ", nrow(raw.1kb), " regions, ", ncol(raw.1kb), " columns."))
+
+message("Processing reference panel methylation matrix...")
+methy.mat <- NULL
+for (i in seq(opt$start_col_data, length(raw.1kb[1,]), 2)) {
+  j <- i + 1
+  if (j > length(raw.1kb[1,])) {
+      warning(paste("Odd number of data columns or start_col_data too high for file:", opt$ref_meth_data, "Skipping last meth column if present."))
+      break
+  }
+  methyl_counts <- as.numeric(raw.1kb[, i])
+  cov <- as.numeric(raw.1kb[, j])
+  methyl_val <- ifelse(cov < opt$min_cov_val, NA, methyl_counts / cov) # Set to NA if low coverage
+  methy.mat <- cbind(methy.mat, methyl_val)
+}
+
+if (ncol(raw.1kb) >= 4) {
+    # ***** MAJOR FIX: Keep "chr" prefix for consistency with cfDNA if present in source files *****
+    rownames(methy.mat) <- raw.1kb[, 4]
+    # Original problematic line: rownames(methy.mat) <- gsub("chr", "", raw.1kb[, 4])
 } else {
-    stop("Failed to process cfDNA methylation matrix. Check input file format and start column.")
+    warning("Column 4 not found in reference methylation data for rownames. Using generic row numbers.")
+    rownames(methy.mat) <- 1:nrow(methy.mat)
+}
+colnames(methy.mat) <- name.order[, 2]
+message(paste0("  Initial reference methy.mat dimensions: ", paste(dim(methy.mat), collapse=" x ")))
+message(paste0("  Number of reference samples: ", ncol(methy.mat)))
+
+ref_initial_cols_remove_indices <- parse_cs_integers(opt$ref_initial_cols_remove)
+if (!is.null(ref_initial_cols_remove_indices)) {
+  message(paste("  Removing initial reference columns by index:", paste(ref_initial_cols_remove_indices, collapse=", ")))
+  valid_indices_to_remove <- ref_initial_cols_remove_indices[ref_initial_cols_remove_indices > 0 & ref_initial_cols_remove_indices <= ncol(methy.mat)]
+  if (length(valid_indices_to_remove) > 0) {
+      methy.mat <- methy.mat[, -valid_indices_to_remove, drop=FALSE]
+      name.order <- name.order[-valid_indices_to_remove, , drop=FALSE] # Update name.order accordingly
+      message(paste0("    Reference methy.mat dimensions after initial col removal: ", paste(dim(methy.mat), collapse=" x ")))
+  } else {
+      warning("    No valid column indices provided for initial removal, or all indices out of bounds.")
+  }
+}
+
+message("Filtering reference panel by standard deviation...")
+row.sd <- apply(methy.mat, 1, sd, na.rm = TRUE)
+sd_threshold_value <- quantile(row.sd, probs = opt$sd_quantile, na.rm = TRUE)
+message(paste0("  SD threshold value at quantile ", opt$sd_quantile, ": ", sd_threshold_value))
+methy.mat.mostVar <- methy.mat[which(row.sd >= sd_threshold_value & !is.na(row.sd)), , drop=FALSE] # Ensure row.sd is not NA
+message(paste0("  Reference methy.mat.mostVar dimensions after SD filtering: ", paste(dim(methy.mat.mostVar), collapse=" x ")))
+
+message("Cleaning and binarizing most variable reference matrix...")
+methy.mat.mostVar <- methy.mat.mostVar[rowSums(is.na(methy.mat.mostVar), na.rm=T) == 0, , drop=FALSE]
+message(paste0("    Dimensions after NA row removal: ", paste(dim(methy.mat.mostVar), collapse=" x ")))
+methy.mat.mostVar <- methy.mat.mostVar[rowSums(is.infinite(as.matrix(methy.mat.mostVar)), na.rm=T) == 0, , drop=FALSE]
+message(paste0("    Dimensions after Inf row removal: ", paste(dim(methy.mat.mostVar), collapse=" x ")))
+
+methy.mat.mostVar[methy.mat.mostVar < opt$meth_bin_threshold] <- 0
+methy.mat.mostVar[methy.mat.mostVar >= opt$meth_bin_threshold] <- 1
+
+ref_reorder_cols_keep_indices <- parse_cs_integers(opt$ref_reorder_cols_keep)
+if (!is.null(ref_reorder_cols_keep_indices)) {
+  message(paste("  Keeping and reordering reference columns by index (from current mostVar):", paste(ref_reorder_cols_keep_indices, collapse=", ")))
+  valid_indices_to_keep <- ref_reorder_cols_keep_indices[ref_reorder_cols_keep_indices > 0 & ref_reorder_cols_keep_indices <= ncol(methy.mat.mostVar)]
+  if(length(valid_indices_to_keep) > 0) {
+      methy.mat.mostVar <- methy.mat.mostVar[, valid_indices_to_keep, drop=FALSE]
+      # Update name.order to reflect the columns of methy.mat.mostVar AFTER this reordering step
+      # This assumes name.order was correctly tracking columns of methy.mat,
+      # and that the indices in ref_reorder_cols_keep_indices refer to the columns of the *current* methy.mat.mostVar
+      name.order <- name.order[valid_indices_to_keep, , drop=FALSE] # This line needs careful thought if initial filtering also happened on name.order
+      message(paste0("    Reference methy.mat.mostVar dimensions after reorder/keep: ", paste(dim(methy.mat.mostVar), collapse=" x ")))
+  } else {
+      warning("    No valid column indices provided for reordering/keeping, or all indices out of bounds.")
+  }
+}
+# Ensure name.order reflects the final columns of methy.mat.mostVar
+# This is crucial if column filtering/reordering has occurred.
+# We assume name.order rows correspond to the columns of methy.mat.mostVar
+if(ncol(methy.mat.mostVar) != nrow(name.order)){
+    warning("Mismatch between number of columns in final reference matrix and rows in name.order. Colnames for results might be incorrect.")
+    # Re-deriving name.order might be safer if complex filtering occurred, but let's assume for now it was handled.
+    # If not handled correctly by subsetting name.order alongside methy.mat, then:
+    # current_colnames_ref <- colnames(methy.mat.mostVar)
+    # name.order <- data.frame(V1=1:length(current_colnames_ref), V2=current_colnames_ref, stringsAsFactors = FALSE)
 }
 
 
-# Filter cfDNA matrix to remove rows with any NAs or Infs
-cfdna_methy_mat <- cfdna_methy_mat[rowSums(is.na(cfdna_methy_mat)) == 0 & 
-                                   rowSums(is.infinite(as.matrix(cfdna_methy_mat))) == 0, , drop = FALSE]
+# --- 3. Load and Process cfDNA Data ---
+message("Loading cfDNA data...")
+message("  cfDNA methylation data file: ", opt$cfdna_meth_data)
+cfdna.1kb <- read.table(opt$cfdna_meth_data, sep="\t", header=F, stringsAsFactors=FALSE, comment.char="")
+message("  cfDNA names order file: ", opt$cfdna_names_order)
+cfdna.name.order <- read.table(opt$cfdna_names_order, sep="\t", header=F, stringsAsFactors=FALSE, comment.char="")
+message(paste0("  Raw cfDNA data loaded: ", nrow(cfdna.1kb), " regions, ", ncol(cfdna.1kb), " columns."))
 
-if (nrow(cfdna_methy_mat) == 0) {
-  stop("No regions left in cfDNA matrix after NA/Inf filtering. Check data quality or coverage filter.")
+message("Processing cfDNA methylation matrix...")
+methy.cfmat <- NULL
+for (i in seq(opt$start_col_data, length(cfdna.1kb[1,]), 2)) {
+  j <- i + 1
+  if (j > length(cfdna.1kb[1,])) {
+      warning(paste("Odd number of data columns or start_col_data too high for file:", opt$cfdna_meth_data, "Skipping last meth column if present."))
+      break
+  }
+  methyl_counts_cf <- as.numeric(cfdna.1kb[, i])
+  cov_cf <- as.numeric(cfdna.1kb[, j])
+  methyl_val_cf <- ifelse(cov_cf < opt$min_cov_val, NA, methyl_counts_cf / cov_cf)
+  methy.cfmat <- cbind(methy.cfmat, methyl_val_cf)
 }
-
-# Binarize cfDNA data if threshold is not -1
-if (opt$binarize_threshold != -1) {
-  cat(paste("  Binarizing cfDNA data at threshold:", opt$binarize_threshold, "\n"))
-  cfdna_methy_mat[cfdna_methy_mat < opt$binarize_threshold] <- 0
-  cfdna_methy_mat[cfdna_methy_mat >= opt$binarize_threshold] <- 1
+if (ncol(cfdna.1kb) >= 4) {
+    # Assuming cfDNA source also has "chr" and we want consistency
+    rownames(methy.cfmat) <- cfdna.1kb[, 4]
+} else {
+    warning("Column 4 not found in cfDNA methylation data for rownames. Using generic row numbers.")
+    rownames(methy.cfmat) <- 1:nrow(methy.cfmat)
 }
+colnames(methy.cfmat) <- cfdna.name.order[, 2]
+message(paste0("  Initial cfDNA methy.cfmat dimensions: ", paste(dim(methy.cfmat), collapse=" x ")))
 
+# message("Cleaning and binarizing cfDNA matrix...")
+# methy.cfmat <- methy.cfmat[rowSums(is.na(methy.cfmat), na.rm=T) == 0, , drop=FALSE]
+# message(paste0("    Dimensions after NA row removal: ", paste(dim(methy.cfmat), collapse=" x ")))
+# methy.cfmat <- methy.cfmat[rowSums(is.infinite(as.matrix(methy.cfmat)), na.rm=T) == 0, , drop=FALSE]
+# message(paste0("    Dimensions after Inf row removal: ", paste(dim(methy.cfmat), collapse=" x ")))
 
-# --- Find Common Regions ---
-cat("Finding common regions between reference and cfDNA...\n")
-common_regions <- intersect(rownames(cfdna_methy_mat), rownames(methy_mat_ref_var))
+methy.cfmat[methy.cfmat < opt$meth_bin_threshold] <- 0
+methy.cfmat[methy.cfmat >= opt$meth_bin_threshold] <- 1
+
+# --- 4. Perform Deconvolution ---
+message("--- Debugging Rownames Before Intersection ---")
+message(paste0("Number of rows in processed reference matrix (methy.mat.mostVar): ", nrow(methy.mat.mostVar)))
+if (nrow(methy.mat.mostVar) > 0) {
+    message("First 5 rownames of methy.mat.mostVar:")
+    print(head(rownames(methy.mat.mostVar), 5))
+}
+message(paste0("Number of rows in processed cfDNA matrix (methy.cfmat): ", nrow(methy.cfmat)))
+if (nrow(methy.cfmat) > 0) {
+    message("First 5 rownames of methy.cfmat:")
+    print(head(rownames(methy.cfmat), 5))
+}
+# For more extensive debugging, write all rownames to files:
+# write.table(rownames(methy.mat.mostVar), file="debug_ref_rownames.txt", row.names=F, col.names=F, quote=F)
+# write.table(rownames(methy.cfmat), file="debug_cfdna_rownames.txt", row.names=F, col.names=F, quote=F)
+message("--------------------------------------------")
+
+message("Finding common regions between reference and cfDNA...")
+common_regions <- intersect(rownames(methy.cfmat), rownames(methy.mat.mostVar))
+message(paste0("Number of common regions found: ", length(common_regions)))
 
 if (length(common_regions) == 0) {
-  stop("No common regions found between processed cfDNA and reference matrices. Check region IDs and filtering steps.")
+  stop("No common regions found between reference and cfDNA matrices after filtering. Cannot proceed.", call.=FALSE)
 }
-cat(paste("  Found", length(common_regions), "common regions for deconvolution.\n"))
-
-cfdna_methy_common <- cfdna_methy_mat[common_regions, , drop = FALSE]
-ref_methy_common <- methy_mat_ref_var[common_regions, , drop = FALSE]
-
-
-# --- Perform Deconvolution for each cfDNA sample ---
-cat("Performing deconvolution...\n")
-final_too_results <- NULL
-
-for (sample_idx in 1:ncol(cfdna_methy_common)) {
-  cfdna_sample_name <- colnames(cfdna_methy_common)[sample_idx]
-  cat(paste("  Processing cfDNA sample:", cfdna_sample_name, "\n"))
-  
-  # Combine current cfDNA sample with the reference matrix
-  # Ensure the cfDNA sample is the first column as expected by tissue_of_origin function
-  deconvolution_input_dat <- cbind(cfdna_methy_common[, sample_idx, drop = FALSE], ref_methy_common)
-  colnames(deconvolution_input_dat)[1] <- "cfDNA_Sample" # Temporary name for clarity
-  
-  sample_result_fractions <- tissue_of_origin(deconvolution_input_dat)
-  
-  if (is.null(final_too_results)) {
-    final_too_results <- matrix(sample_result_fractions, nrow = 1)
-  } else {
-    final_too_results <- rbind(final_too_results, sample_result_fractions)
-  }
+if (length(common_regions) < 10) { # Arbitrary small number
+    message("WARNING: Very few common regions found (<10). Deconvolution might be unstable or unreliable.")
+    message("First few common regions:")
+    print(head(common_regions, 5))
 }
 
-# Set column and row names for the final result matrix
-if (!is.null(final_too_results)) {
-  colnames(final_too_results) <- colnames(ref_methy_common) # Reference tissue names
-  rownames(final_too_results) <- colnames(cfdna_methy_common) # cfDNA sample names
 
-  # Set very small values to 0 for clarity
-  final_too_results[final_too_results < 0.001 & !is.na(final_too_results)] <- 0
+methy.cfmat.common <- methy.cfmat[common_regions, , drop=FALSE]
+methy.mat.ref <- methy.mat.mostVar[common_regions, , drop=FALSE]
+message(paste0("Dimensions of methy.cfmat.common: ", paste(dim(methy.cfmat.common), collapse=" x ")))
+message(paste0("Dimensions of methy.mat.ref: ", paste(dim(methy.mat.ref), collapse=" x ")))
+
+
+message("Performing tissue of origin deconvolution for each cfDNA sample...")
+too_result.1kb <- NULL
+if (ncol(methy.cfmat.common) > 0) {
+    for (k in 1:ncol(methy.cfmat.common)) {
+      current_cfdna_sample_name <- colnames(methy.cfmat.common)[k]
+      message(paste0("  Deconvoluting cfDNA sample: ", current_cfdna_sample_name))
+      dat_for_deconv <- cbind(methy.cfmat.common[, k, drop=FALSE], methy.mat.ref)
+      res <- tissue_of_origin(dat_for_deconv)
+      too_result.1kb <- rbind(too_result.1kb, res)
+    }
+
+    if (!is.null(too_result.1kb)) {
+        colnames(too_result.1kb) <- name.order[, 2]
+        rownames(too_result.1kb) <- colnames(methy.cfmat.common)
+
+        message("Applying final result threshold...")
+        too_result.1kb[is.na(too_result.1kb)] <- 0
+        too_result.1kb[too_result.1kb < opt$final_result_threshold] <- 0
+    } else {
+        warning("Deconvolution resulted in NULL. No output will be written.")
+    }
 } else {
-    warning("Deconvolution resulted in NULL. No output will be written.")
+    message("No cfDNA samples to process after filtering (methy.cfmat.common has 0 columns).")
+    too_result.1kb <- data.frame()
 }
 
-
-# --- Write Output ---
-if (!is.null(final_too_results)) {
-    cat(paste("Writing results to:", opt$output_file, "\n"))
-    write.table(final_too_results, file = opt$output_file, sep = "\t", quote = FALSE, row.names = TRUE, col.names = NA) # col.names=NA for R-friendly tsv
+# --- 5. Write Output ---
+if (!is.null(too_result.1kb) && (nrow(too_result.1kb) > 0 || ncol(too_result.1kb) > 0) ) { # Check if there's something to write
+    message(paste("Writing results to:", opt$output_file))
+    write.table(too_result.1kb, file=opt$output_file, sep="\t", quote=F, row.names=T, col.names=NA)
 } else {
-    cat("No results to write.\n")
+    message(paste("No results to write or deconvolution failed for all samples. Output file may be empty or not created:", opt$output_file))
+    # Optionally create an empty file if that's desired pipeline behavior
+    # file.create(opt$output_file)
 }
 
-cat("Tissue of Origin analysis complete.\n")
+message("Script finished.")

@@ -1,0 +1,9 @@
+1	Human_BCell
+2	Human_Erythblast
+3	Human_Liver
+4	Human_Macrophage
+5	Human_Neut
+6	Human_Tcell
+7	Human_endothelial_umbilical_vein
+8	mammary_epithelial.ENCFF478RLX
+9	prostate_gland.ENCFF537YTL

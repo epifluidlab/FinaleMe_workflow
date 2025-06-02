@@ -122,6 +122,8 @@ Liu Y# et al. (2024) FinaleMe: Predicting DNA methylation by the fragmentation p
 
 ## Contact
 - Kundan Baliga: kundanbal2969@k12.ipsd.org
+- Ravi Bandaru: ravi.bandaru@northwestern.edu
+- Yaping Liu: yaping@northwestern.edu
 
 ## License
 This project falls under an MIT license. See the included `LICENSE` file for details.

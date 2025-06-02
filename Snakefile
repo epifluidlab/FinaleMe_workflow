@@ -61,7 +61,8 @@ rule all:
         # Main outputs for each sample from Step 4
         expand(os.path.join(OUT_DIR, "{sample}", "{sample}.finaleme.cov.b37.bw"), sample=SAMPLES),
         # Outputs for Tissue of Origin (Step 5) if enabled
-        lambda wc: os.path.join(OUT_DIR, "tissue_of_origin", "output.add_value.methy.bed.gz") if config.get("too_enabled") else [],
+        os.path.join(OUT_DIR, "tissue_of_origin", "output.add_value.methy.bed.gz") if config.get("too_enabled") else [],
+        os.path.join(OUT_DIR, "tissue_of_origin", "cfdna.names_order.txt") if config.get("too_enabled") else []
 
 
 
@@ -73,27 +74,34 @@ rule finaleme_extract_features:
         ref_2bit=os.path.join(SUP_DIR, config["reference_2bit"]),
         cpg_motif=os.path.join(SUP_DIR, config["cpg_motif_bedgraph"]),
         exclude_regions=os.path.join(SUP_DIR, config["exclude_regions_bed"]),
-        methylation_prior=os.path.join(SUP_DIR, config["methylation_prior_bw"])
+        methylation_prior=os.path.join(SUP_DIR, config["methylation_prior_bw"]),
     output:
         features=os.path.join(OUT_DIR, "{sample}", "{sample}.CpgMultiMetricsStats.details.bed.gz")
     params:
         java_xmx=config.get("java_xmx_step1", "20G"),
-        finaleme_class="org.cchmc.epifluidlab.finaleme.utils.CpgMultiMetricsStats"
+        finaleme_class="org.cchmc.epifluidlab.finaleme.utils.CpgMultiMetricsStats",
+        prefix="-useNoChrPrefixBam" if config['chr_prefix_bam'] else ''
     log:
         os.path.join(OUT_DIR, "{sample}", "logs", "extract_features.log")
     shell:
         """
         echo "Note: extracting features can take a significant amount of time (minutes to hours)"
-        java -Xmx{params.java_xmx} -cp "{CP_STEP1}" {params.finaleme_class} \
-        {input.ref_2bit} \
-        {input.cpg_motif} \
-        {input.cpg_motif} \
-        {input.bam} \
-        {output.features} \
-        -stringentPaired \
-        -excludeRegions {input.exclude_regions} \
-        -valueWigs methyPrior:0:{input.methylation_prior} \
-        -wgsMode > {log} 2>&1
+
+        CMD="java -Xmx{params.java_xmx} -cp '{CP_STEP1}' {params.finaleme_class} \\
+        {input.ref_2bit} \\
+        {input.cpg_motif} \\
+        {input.cpg_motif} \\
+        {input.bam} \\
+        {output.features} \\
+        -stringentPaired \\
+        -excludeRegions {input.exclude_regions} \\
+        -valueWigs methyPrior:0:{input.methylation_prior} \\
+        -wgsMode \\
+        {params.prefix}"
+
+        echo "Executing command: ${{CMD}}"
+
+        eval "$CMD"
         """
 
 # Step 2: Train the HMM model
@@ -149,13 +157,11 @@ rule finaleme_convert_to_bigwig:
         prediction=rules.finaleme_decode.output.prediction,
         chrom_sizes=os.path.join(SUP_DIR, config["chrom_sizes"])
     output:
-
         cov_bw=os.path.join(OUT_DIR, "{sample}", "{sample}.finaleme.cov.b37.bw"),
-        methy_count_bw=os.path.join(OUT_DIR, "{sample}", "{sample}.finaleme.methy_count.b37.bw") # Critical assumption
+        methy_count_bw=os.path.join(OUT_DIR, "{sample}", "{sample}.finaleme.methy_count.b37.bw")  # Critical assumption
     params:
         perl_script=os.path.join(SCRIPTS_DIR, config.get("bw_perl_script")),
         output_prefix=lambda wildcards: os.path.join(OUT_DIR, wildcards.sample, f"{wildcards.sample}.finaleme")
-
     log:
         os.path.join(OUT_DIR, "{sample}", "logs", "convert_to_bigwig.log")
     shell:
@@ -214,7 +220,7 @@ rule too_run_alignmultiwig:
         os.path.join(OUT_DIR, "tissue_of_origin", "logs", "alignmultiwig.log")
     shell:
         """
-        if {config.get("too_enabled")}; then
+        if [ "{config[too_enabled]}" = "True" ]; then
             CMD_ARGS=$(cat {input.cmd_file})
             java -Xmx{params.java_xmx} -cp "{CP_STEP5_ALIGNMULTIWIG}" {params.tool_class} \
             {input.intervals_bed} \

@@ -2,6 +2,7 @@ input_dir: "input"
 output_dir: "output"
 supplement_dir: "supplement"
 scripts_dir: "scripts" # location of, Perl, R scripts
+chr_prefix_bam: true # Are chromosomes identified by their number only (0-9) or prefixed with chr, i.e chr[0-9]?
 
 finaleme_jar_path: "FinaleMe-0.58-jar-with-dependencies.jar"
 bw_perl_script: "bedpredict2bw.b37.pl" # In supplement_dir
@@ -26,6 +27,6 @@ chrom_sizes: "hg19.chrom.sizes"
 # cov_outlier_train: 3
 
 # Tissue of Origin (TOO) Analysis Settings
-too_enabled: False # Set to False to disable TOO steps
+too_enabled: True # Set to False to disable TOO steps
 autosome_1kb_intervals_bed: "autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed" # In supplement_dir
 reference_methylomes_dir: "reference_methylomes_for_TOO" # In supplement_dir

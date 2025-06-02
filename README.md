@@ -32,9 +32,8 @@ This Snakemake workflow automates the prediction of DNA methylation from cell-fr
     ```
 
 3.  **Download FinaleMe JARs:**
-    Download the main FinaleMe JAR (`FinaleMe-VERSION-jar-with-dependencies.jar`) and the auxiliary JARs from the `lib/` directory.
+    Download the main FinaleMe JAR (`FinaleMe-VERSION-jar-with-dependencies.jar`). Auxiliary JARs can be found in the `lib/` directory of this repository, which should be present upon cloning.
     *   Main JAR: [FinaleMe v0.58.1 Release](https://github.com/epifluidlab/FinaleMe/releases/tag/v.0.58.1)
-    *   Auxillary JARs: Place [these JARS](https://github.com/epifluidlab/FinaleMe/tree/main/lib) in a designated `lib` directory and update the paths in your configuration file.
 
 ## Dependencies
 
@@ -53,14 +52,14 @@ This workflow relies on the following tools. It's recommended to install them vi
 
 Before running the workflow, ensure you have the following data, and their paths are correctly specified in the configuration file:
 
-*   **Input BAM files:** Coordinate-sorted and indexed (`.bai`) BAM files for each sample.
+*   **Input BAM files:** Coordinate-sorted and indexed (`.bai`) BAM files for each sample. An example has been provided in the `input` directory
 *   **Reference Genome (2bit format):** E.g., `hg19.2bit`. Can be downloaded from UCSC or converted using `faToTwoBit`.
 *   **CpG Motif BedGraph:** E.g., `CG_motif.hg19.common_chr.pos_only.bedgraph`. Available from [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7779198.svg)](https://doi.org/10.5281/zenodo.7779198).
 *   **Exclude Regions BED:** Regions to mask (dark regions), e.g., `wgEncodeDukeMapabilityRegionsExcludable_wgEncodeDacMapabilityConsensusExcludable.hg19.bed`.
 *   **Methylation Prior BigWig:** E.g., `wgbs_buffyCoat_jensen2015GB.methy.hg19.bw`. Available from [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7779198.svg)](https://doi.org/10.5281/zenodo.7779198).
 *   **Chromosome Sizes File:** E.g., `hg19.chrom.sizes`. Can be generated using `samtools faidx` and `awk`.
 *   **FinaleMe Scripts:**
-    *   `bedpredict2bw.b37.pl` (for Step 4).
+    *   `bedpredict2bw.b37.pl` (for tissue of origin analysis only) - see the `scripts` directory
     <!-- *   `TissueOfOriginExampleScript.R` (for Step 5, if enabled). -->
 *   **(Optional - For Tissue of Origin Analysis):**
     *   `autosome_1kb_intervals.UCSC.cpgIsland_plus_shore.b37.bed`: Bed file with 1kb intervals: Download the UCSC.cpgIsland annotation file from UCSC genome browser, keep the autosomes, and generate 1kb non-overlapped windows
@@ -88,6 +87,8 @@ The workflow is controlled by a `params.yaml` file. Check `params.yaml` in this 
     # Execute the workflow (adjust --cores and --jobs as needed)
     # --cores: Total number of CPU cores Snakemake can use.
     # --jobs: Maximum number of concurrent jobs (rules) to run.
+
+    # Note: FinaleMe hasn't been updated to utilize multithreading yet, so jobs should ideally match the number of cores
     snakemake --configfile params.yaml --cores <number_of_cores> --jobs <number_of_jobs>
     ```
 
